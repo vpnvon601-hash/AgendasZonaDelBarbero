@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agendar Cita - LA ZONA DEL BARBERO</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #1f1c2c, #928dab);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.container {
+    background-color: #fff;
+    padding: 40px 30px;
+    border-radius: 15px;
+    width: 400px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+    font-weight: 600;
+}
+input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
+input:focus, select:focus {
+    outline: none;
+    border-color: #6c63ff;
+    box-shadow: 0 0 5px rgba(108,99,255,0.5);
+}
+button {
+    background-color: #6c63ff;
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+button:hover { background-color: #5751d0; }
+option.unavailable { color: red; font-weight: bold; }
+label { font-weight: 600; color: #555; }
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>Agendar Cita - LA ZONA DEL BARBERO</h2>
+<form id="citaForm">
+<input type="text" id="nombre" placeholder="Nombre" required>
+<input type="text" id="apellido" placeholder="Apellido" required>
+<input type="tel" id="telefono" placeholder="Número telefónico" required pattern="[0-9]{10,15}">
+<input type="date" id="fecha" required>
+<select id="hora" required></select>
+<button type="submit">Agendar Cita</button>
+</form>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+<script>
+// Configuración Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyD0XwAGFWJEFs6_bpPLQGSVeBPyTkymk6I",
+  authDomain: "shantybarber-b7b8c.firebaseapp.com",
+  databaseURL: "https://shantybarber-b7b8c-default-rtdb.firebaseio.com",
+  projectId: "shantybarber-b7b8c",
+  storageBucket: "shantybarber-b7b8c.firebasestorage.app",
+  messagingSenderId: "568694643758",
+  appId: "1:568694643758:web:c1bbf8a68f6e9e3d4ad3bf",
+  measurementId: "G-JXMJM9Q3X1"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const horaSelect = document.getElementById('hora');
+const fechaInput = document.getElementById('fecha');
+
+// Generar horas de 10:00 a 21:00 cada 40 minutos
+function generarHoras() {
+    horaSelect.innerHTML = '';
+    let start = 10*60;
+    const end = 21*60;
+    while(start < end){
+        let h = Math.floor(start/60);
+        let m = start%60;
+        let horaStr = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        let option = document.createElement('option');
+        option.value = horaStr;
+        option.textContent = horaStr;
+        horaSelect.appendChild(option);
+        start += 40;
+    }
+}
+
+// Actualizar horas ocupadas
+function actualizarHoras() {
+    if(!fechaInput.value) return;
+    const ref = db.ref('citas/'+fechaInput.value);
+    ref.on('value', (snapshot)=>{
+        generarHoras();
+        const citas = snapshot.val() || {};
+        for(let option of horaSelect.options){
+            if(citas[option.value]){
+                option.disabled = true;
+                option.classList.add('unavailable');
+                option.textContent = option.value + ' - Ocupado';
+            }
+        }
+    });
+}
+
+fechaInput.addEventListener('change', actualizarHoras);
+
+// Enviar formulario
+document.getElementById('citaForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const nombre = document.getElementById('nombre').value;
+    const apellido = document.getElementById('apellido').value;
+    const telefono = document.getElementById('telefono').value;
+    const fecha = document.getElementById('fecha').value;
+    const hora = document.getElementById('hora').value;
+
+    if(!hora) return alert('Selecciona una hora disponible.');
+
+    // Guardar en Firebase
+    db.ref('citas/'+fecha+'/'+hora).set({ nombre, apellido, telefono });
+
+    // Abrir WhatsApp
+    const mensaje = `Hola! Quiero agendar una cita:\nNombre: ${nombre}\nApellido: ${apellido}\nTeléfono: ${telefono}\nFecha: ${fecha}\nHora: ${hora}`;
+    const waUrl = `https://wa.me/573233489369?text=${encodeURIComponent(mensaje)}`;
+    window.open(waUrl,'_blank');
+
+    alert('Cita agendada correctamente!');
+    document.getElementById('citaForm').reset();
+    horaSelect.innerHTML = '';
+});
+</script>
+</body>
+</html>
